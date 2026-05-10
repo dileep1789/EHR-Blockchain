@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Theme Colors - CSS Custom Properties */
+:root {
+	--color-primary-purple: #8F54B7;
+	--color-primary-violet: #7339E6;
+	--color-bg-dark: #111;
+	--color-text-dark: #222;
+}
+
+/* Essential Custom Classes */
+.bg-gradient-primary {
+	background: linear-gradient(to bottom, var(--color-primary-purple), var(--color-primary-violet));
+}
+
+.bg-certi-repeat {
+	background-image: url("../assets/images/background.webp");
+	background-repeat: repeat;
+}
+
+@media (min-width: 2560px) {
+	.bg-certi-repeat {
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center top;
+		background-attachment: fixed;
+	}
+}
+
+/* Material Icons Styling */
+.material-icons {
+	font-family: 'Material Icons';
+	font-weight: normal;
+	font-style: normal;
+	display: inline-block;
+	line-height: 1;
+	text-transform: none;
+	letter-spacing: normal;
+	word-wrap: normal;
+	white-space: nowrap;
+	direction: ltr;
+	vertical-align: middle;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Hide scrollbar for horizontal scroll */
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}

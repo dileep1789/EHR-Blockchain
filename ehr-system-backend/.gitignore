@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+npm-debug.log
+npm-error.log
+yarn-error.log
+
+# Uploads & Media
+public/uploads/
+public/uploads/institutes/logos/
+public/uploads/institutes/documents/
+uploads/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.classpath
+
+# OS Files
+Thumbs.db
+.DS_Store
+*.log
+
+# Build Output
+dist/
+build/
+.next/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# Database Backups
+*.sql
+database/backups/
