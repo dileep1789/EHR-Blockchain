@@ -4,7 +4,7 @@ import Navbar from '../../components/Navbar'
 import verifyImage from '../../assets/images/verifyImage.webp'
 import { verifyAPI } from '../../services/api'
 import RecordPdfRenderer from '../../components/RecordPdfRenderer'
-import { generateCertificatePdfBlob } from '../../utils/certificatePdf'
+import { generateRecordPdfBlob } from '../../utils/recordPdf'
 
 export default function VerifyPage() {
   const navigate = useNavigate()
@@ -45,10 +45,10 @@ export default function VerifyPage() {
           diagnosis: response.data.record.diagnosis || response.data.record.course_name || response.data.record.certificate_title,
           instituteName: response.data.record.institute_name || response.data.record.instituteName,
           recordDate: response.data.record.record_date || response.data.record.recordDate,
-          status: response.data.record.grade || response.data.record.status,
+          medicalStatus: response.data.record.medical_status || response.data.record.grade || response.data.record.status,
           blockchainTxHash: response.data.record.blockchain_tx_hash,
           blockchainVerified: response.data.onchain?.verified || false,
-          instituteLogoUrl: logoUrl
+          hospitalLogoUrl: logoUrl
         })
       } else {
         setVerificationResult({
@@ -113,8 +113,8 @@ export default function VerifyPage() {
       diagnosis: verificationResult.diagnosis,
       instituteName: verificationResult.instituteName,
       recordDate: verificationResult.recordDate,
-      grade: verificationResult.grade,
-      instituteLogoUrl: verificationResult.instituteLogoUrl
+      grade: verificationResult.medicalStatus,
+      instituteLogoUrl: verificationResult.hospitalLogoUrl
     })
     setIsGeneratingPdf(true)
   }
@@ -143,7 +143,7 @@ export default function VerifyPage() {
           return
         }
 
-        const blob = await generateCertificatePdfBlob(templateRef.current)
+        const blob = await generateRecordPdfBlob(templateRef.current)
         if (!blob || isCancelled) {
           return
         }
@@ -260,7 +260,7 @@ export default function VerifyPage() {
                       </div>
                       <div className="bg-purple-50 p-4 rounded-lg">
                         <p className="text-sm text-gray-600 mb-1">Medical Status</p>
-                        <p className="font-semibold text-gray-800">{verificationResult.status}</p>
+                        <p className="font-semibold text-gray-800">{verificationResult.medicalStatus}</p>
                       </div>
                     </div>
 

@@ -21,7 +21,7 @@ router.post('/resend-verification', hospitalController.resendInstituteVerificati
 // Protected routes (require hospital authentication)
 router.get('/profile', verifyToken, verifyHospital, hospitalController.getProfile);
 router.get('/dashboard', verifyToken, verifyHospital, hospitalController.getDashboard);
-router.get('/patients/search', verifyToken, verifyHospital, hospitalController.searchStudents);
+router.get('/patients/search', verifyToken, verifyHospital, hospitalController.searchPatients);
 
 // Record routes
 router.post('/record/issue', verifyToken, verifyHospital, hospitalController.issueCertificate);

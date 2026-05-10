@@ -4,7 +4,7 @@ import Card from '../../components/Card'
 import PatientHeader from '../../components/PatientHeader'
 import { patientAPI, verifyAPI } from '../../services/api'
 import RecordPdfRenderer from '../../components/RecordPdfRenderer'
-import { generateCertificatePdfBlob } from '../../utils/certificatePdf'
+import { generateRecordPdfBlob } from '../../utils/recordPdf'
 
 export default function PatientHistory() {
   const { patientId } = useParams() // For public record view
@@ -20,18 +20,18 @@ export default function PatientHistory() {
     name: '',
     patientId: '',
     email: '',
-    totalCertificates: 0,
+    totalRecords: 0,
     blockchainVerified: 0,
-    institutions: 0,
+    hospitals: 0,
     activeCertificates: 0,
     profilePhotoUrl: null,
     cvUrl: null,
     githubUrl: null
   })
 
-  const [records, setCertificates] = useState([])
-  const [institutions, setInstitutions] = useState([])
-  const [careerInsights, setCareerInsights] = useState(null)
+  const [records, setRecords] = useState([])
+  const [hospitals, setHospitals] = useState([])
+  const [careInsights, setCareInsights] = useState(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [pdfCertificate, setPdfCertificate] = useState(null)
   const templateRef = useRef(null)
@@ -59,20 +59,20 @@ export default function PatientHistory() {
           name: patient.fullName || patient.full_name,
           patientId: patient.patientId || patient.patient_id,
           email: patient.email,
-          totalCertificates: certs.length,
+          totalRecords: certs.length,
           blockchainVerified: certs.filter(c => c.blockchain_tx_hash).length,
-          institutions: new Set(certs.map(c => c.hospital_id)).size,
-          activeCertificates: certs.filter(c => !c.expiry_date || new Date(c.expiry_date) > new Date()).length,
+          hospitals: new Set(certs.map(c => c.hospital_id)).size,
+          activeRecords: certs.filter(c => !c.expiry_date || new Date(c.expiry_date) > new Date()).length,
           profilePhotoUrl: patient.profilePhotoUrl || patient.profile_photo_url,
           cvUrl: patient.cvUrl || patient.cv_url,
           githubUrl: patient.githubUrl || patient.github_url
         })
         
-        setCertificates(certs)
+        setRecords(certs)
         
-        // Set career insights if available from backend
+        // Set care insights if available from backend
         if (insights) {
-          setCareerInsights(insights)
+          setCareInsights(insights)
         }
         
         // Calculate institutions
@@ -87,7 +87,7 @@ export default function PatientHistory() {
           }
           instMap[cert.hospital_id].certificateCount++
         })
-        setInstitutions(Object.values(instMap))
+        setHospitals(Object.values(instMap))
         
         setIsOwnPortfolio(false)
         } catch (err) {
@@ -108,23 +108,23 @@ export default function PatientHistory() {
           name: patient.full_name,
           patientId: patient.patientId,
           email: patient.email,
-          totalCertificates: statistics.totalCertificates,
+          totalRecords: statistics.totalCertificates,
           blockchainVerified: statistics.blockchainVerifiedCount,
-          institutions: statistics.institutionsCount,
-          activeCertificates: statistics.activeCertificatesCount,
+          hospitals: statistics.institutionsCount,
+          activeRecords: statistics.activeCertificatesCount,
           profilePhotoUrl: patient.profile_photo_url,
           cvUrl: patient.cv_url,
           githubUrl: patient.github_url
         })
         
-        setCertificates(certs)
-        setInstitutions(insts)
+        setRecords(certs)
+        setHospitals(insts)
         setIsOwnPortfolio(true)
         
-        // Load career insights
+        // Load care insights
         try {
           const insightsResponse = await patientAPI.getCareerInsights(false)
-          setCareerInsights(insightsResponse.data.insights)
+          setCareInsights(insightsResponse.data.insights)
         } catch (err) {
           console.log('Care insights not available:', err.message)
         }
@@ -205,7 +205,7 @@ export default function PatientHistory() {
         return
       }
 
-      const blob = await generateCertificatePdfBlob(templateRef.current)
+      const blob = await generateRecordPdfBlob(templateRef.current)
       if (!blob) {
         return
       }
@@ -325,7 +325,7 @@ export default function PatientHistory() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
           <Card className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl md:rounded-2xl p-4 md:p-6 text-center border-2 border-purple-300">
             <div className="mb-1 md:mb-2"><span className="material-icons text-purple-600" style={{fontSize: '1.5rem'}}>image</span></div>
-            <div className="text-xl md:text-3xl font-bold text-purple-800 mb-1">{patientData.totalCertificates}</div>
+            <div className="text-xl md:text-3xl font-bold text-purple-800 mb-1">{patientData.totalRecords}</div>
             <div className="text-xs md:text-sm font-semibold text-purple-700">Total Records</div>
           </Card>
 
@@ -337,13 +337,13 @@ export default function PatientHistory() {
 
           <Card className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl md:rounded-2xl p-4 md:p-6 text-center border-2 border-blue-300">
             <div className="mb-1 md:mb-2"><span className="material-icons text-blue-600" style={{fontSize: '1.5rem'}}>account_balance</span></div>
-            <div className="text-xl md:text-3xl font-bold text-blue-800 mb-1">{patientData.institutions}</div>
-            <div className="text-xs md:text-sm font-semibold text-blue-700">Institutions</div>
+            <div className="text-xl md:text-3xl font-bold text-blue-800 mb-1">{patientData.hospitals}</div>
+            <div className="text-xs md:text-sm font-semibold text-blue-700">Hospitals</div>
           </Card>
 
           <Card className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl md:rounded-2xl p-4 md:p-6 text-center border-2 border-orange-300">
             <div className="mb-1 md:mb-2"><span className="material-icons text-orange-600" style={{fontSize: '1.5rem'}}>bolt</span></div>
-            <div className="text-xl md:text-3xl font-bold text-orange-800 mb-1">{patientData.activeCertificates}</div>
+            <div className="text-xl md:text-3xl font-bold text-orange-800 mb-1">{patientData.activeRecords}</div>
             <div className="text-xs md:text-sm font-semibold text-orange-700">Active</div>
           </Card>
         </div>
@@ -526,8 +526,8 @@ export default function PatientHistory() {
           </div>
         )}
 
-        {/* AI Care Insights Section - Desktop View */}
-        {careerInsights && (
+        {/* Care Insights Section - Desktop View */}
+        {careInsights && (
           <Card className="hidden md:block bg-white border-2 border-purple-300 rounded-3xl p-8 mb-12 shadow-lg">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-2xl font-bold text-purple-600 flex items-center gap-2">
@@ -544,21 +544,21 @@ export default function PatientHistory() {
             </div>
 
             {/* Summary */}
-            {careerInsights.summary && (
+            {careInsights.summary && (
               <div className="mb-8">
                 <h4 className="text-xl font-bold text-gray-800 mb-4 text-center">Health Summary</h4>
                 <p className="text-gray-700 text-center leading-relaxed">
-                  {careerInsights.summary}
+                  {careInsights.summary}
                 </p>
               </div>
             )}
 
             {/* Risk Factors */}
-            {careerInsights.riskFactors && careerInsights.riskFactors.length > 0 && (
+            {careInsights.riskFactors && careInsights.riskFactors.length > 0 && (
               <div className="mb-8">
                 <h4 className="text-xl font-bold text-gray-800 mb-6 text-center">Identified Risk Factors</h4>
                 <div className="flex flex-wrap justify-center gap-3">
-                  {careerInsights.riskFactors.map((risk, index) => (
+                  {careInsights.riskFactors.map((risk, index) => (
                     <div key={index} className="bg-red-100 text-red-700 rounded-lg px-6 py-3 text-center font-medium">
                       {risk}
                     </div>
@@ -568,11 +568,11 @@ export default function PatientHistory() {
             )}
 
             {/* Treatment Matches */}
-            {careerInsights.treatmentMatches && careerInsights.treatmentMatches.length > 0 && (
+            {careInsights.treatmentMatches && careInsights.treatmentMatches.length > 0 && (
               <div className="mb-8">
                 <h4 className="text-xl font-bold text-gray-800 mb-6 text-center">Treatment Recommendations</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {careerInsights.treatmentMatches.map((treatment, index) => (
+                  {careInsights.treatmentMatches.map((treatment, index) => (
                     <Card key={index} className="border-l-4 border-purple-500 bg-purple-50 p-6 rounded-lg">
                       <div className="flex justify-between items-start mb-2">
                         <h5 className="font-bold text-gray-800">{treatment.title}</h5>
@@ -587,11 +587,11 @@ export default function PatientHistory() {
             )}
 
             {/* Recommended Actions */}
-            {careerInsights.recommendedActions && careerInsights.recommendedActions.length > 0 && (
+            {careInsights.recommendedActions && careInsights.recommendedActions.length > 0 && (
               <div>
                 <h4 className="text-xl font-bold text-gray-800 mb-6 text-center">Recommended Actions</h4>
                 <div className="space-y-4">
-                  {careerInsights.recommendedActions.map((action, index) => (
+                  {careInsights.recommendedActions.map((action, index) => (
                     <Card key={index} className="border-l-4 border-green-500 bg-green-50 p-6 rounded-lg">
                       <div className="flex items-start gap-3">
                         <span className="material-icons text-2xl">{action.completed ? 'check_circle' : 'push_pin'}</span>
@@ -607,16 +607,16 @@ export default function PatientHistory() {
               </div>
             )}
             
-            {careerInsights.generatedAt && (
+            {careInsights.generatedAt && (
               <p className="text-xs text-gray-500 text-center mt-6">
-                Generated on {new Date(careerInsights.generatedAt).toLocaleString()}
+                Generated on {new Date(careInsights.generatedAt).toLocaleString()}
               </p>
             )}
           </Card>
         )}
 
-        {/* AI Care Insights Section - Mobile Accordion View */}
-        {careerInsights && (
+        {/* Care Insights Section - Mobile Accordion View */}
+        {careInsights && (
           <div className="md:hidden mb-12">
             <button
               onClick={() => setCareerInsightsExpanded(!careerInsightsExpanded)}
@@ -624,7 +624,7 @@ export default function PatientHistory() {
             >
               <div className="flex items-center gap-2">
                 <span className="material-icons text-purple-600">smart_toy</span>
-                <h2 className="text-lg font-bold text-purple-600">AI Care Insights</h2>
+                <h2 className="text-lg font-bold text-purple-600">Care Insights</h2>
               </div>
               <span className="material-icons text-purple-600">{careerInsightsExpanded ? 'expand_less' : 'expand_more'}</span>
             </button>
@@ -640,21 +640,21 @@ export default function PatientHistory() {
                 )}
 
                 {/* Summary */}
-                {careerInsights.summary && (
+                {careInsights.summary && (
                   <div className="mb-6">
                     <h4 className="text-base font-bold text-gray-800 mb-2 text-center">Health Summary</h4>
                     <p className="text-sm text-gray-700 text-center leading-relaxed">
-                      {careerInsights.summary}
+                      {careInsights.summary}
                     </p>
                   </div>
                 )}
 
                 {/* Risk Factors */}
-                {careerInsights.riskFactors && careerInsights.riskFactors.length > 0 && (
+                {careInsights.riskFactors && careInsights.riskFactors.length > 0 && (
                   <div className="mb-6">
                     <h4 className="text-base font-bold text-gray-800 mb-3 text-center">Risk Factors</h4>
                     <div className="flex flex-wrap justify-center gap-2">
-                      {careerInsights.riskFactors.map((risk, index) => (
+                      {careInsights.riskFactors.map((risk, index) => (
                         <div key={index} className="bg-red-100 text-red-700 rounded-lg px-4 py-2 text-xs font-medium">
                           {risk}
                         </div>
@@ -664,11 +664,11 @@ export default function PatientHistory() {
                 )}
 
                 {/* Treatment Matches */}
-                {careerInsights.treatmentMatches && careerInsights.treatmentMatches.length > 0 && (
+                {careInsights.treatmentMatches && careInsights.treatmentMatches.length > 0 && (
                   <div className="mb-6">
                     <h4 className="text-base font-bold text-gray-800 mb-3 text-center">Recommendations</h4>
                     <div className="space-y-2">
-                      {careerInsights.treatmentMatches.map((treatment, index) => (
+                      {careInsights.treatmentMatches.map((treatment, index) => (
                         <Card key={index} className="border-l-4 border-purple-500 bg-purple-50 p-4 rounded-lg">
                           <div className="flex justify-between items-start">
                             <h5 className="text-sm font-bold text-gray-800">{treatment.title}</h5>
@@ -683,11 +683,11 @@ export default function PatientHistory() {
                 )}
 
                 {/* Next Steps */}
-                {careerInsights.recommendedActions && careerInsights.recommendedActions.length > 0 && (
+                {careInsights.recommendedActions && careInsights.recommendedActions.length > 0 && (
                   <div>
                     <h4 className="text-base font-bold text-gray-800 mb-3 text-center">Recommended Actions</h4>
                     <div className="space-y-3">
-                      {careerInsights.recommendedActions.map((action, index) => (
+                      {careInsights.recommendedActions.map((action, index) => (
                         <Card key={index} className="border-l-4 border-green-500 bg-green-50 p-3 rounded-lg">
                           <div className="flex items-start gap-2">
                             <span className="material-icons text-lg">{action.completed ? 'check_circle' : 'push_pin'}</span>
@@ -703,9 +703,9 @@ export default function PatientHistory() {
                   </div>
                 )}
                 
-                {careerInsights.generatedAt && (
+                {careInsights.generatedAt && (
                   <p className="text-xs text-gray-500 text-center mt-4">
-                    Generated on {new Date(careerInsights.generatedAt).toLocaleString()}
+                    Generated on {new Date(careInsights.generatedAt).toLocaleString()}
                   </p>
                 )}
               </Card>
@@ -713,8 +713,8 @@ export default function PatientHistory() {
           </div>
         )}
 
-        {/* Generate Career Insights Button (for authenticated users without insights) */}
-        {isOwnPortfolio && !careerInsights && records.length > 0 && (
+        {/* Generate Care Insights Button (for authenticated users without insights) */}
+        {isOwnPortfolio && !careInsights && records.length > 0 && (
           <Card className="bg-gradient-to-r from-purple-100 to-blue-100 border-2 border-purple-300 rounded-2xl md:rounded-3xl p-6 md:p-12 text-center mb-12">
             <div className="mb-4"><span className="material-icons text-purple-600" style={{fontSize: '3.5rem'}}>smart_toy</span></div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-3 md:mb-4">Get AI Care Insights</h3>
