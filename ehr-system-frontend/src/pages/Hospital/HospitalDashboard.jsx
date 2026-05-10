@@ -57,7 +57,7 @@ const HospitalDashboard = () => {
       }
 
       setInstitute({
-        name: profile?.institute_name || 'Hospital',
+        name: profile?.hospital_name || profile?.institute_name || 'Hospital',
         logo: logoUrl
       });
 

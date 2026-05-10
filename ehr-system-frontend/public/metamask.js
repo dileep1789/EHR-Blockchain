@@ -1,6 +1,7 @@
 /**
- * MetaMask Integration for Certificate Issuance
+ * MetaMask Integration for EHRChain
  * Handles: Connection, Signing, Deposits, On-Chain Payments
+ * Uses Ethers v6 Syntax
  */
 class MetaMask {
   constructor() {
@@ -8,6 +9,7 @@ class MetaMask {
     this.signer = null;
     this.userAddress = null;
     this.chainId = null;
+    // MATCH THIS TO YOUR BACKEND .ENV
     this.CONTRACT_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
     this.CHAIN_ID = 31337;
     this.RPC_URL = 'http://127.0.0.1:8545';
@@ -97,10 +99,12 @@ class MetaMask {
   }
 
   setupEventListeners() {
+    if (!window.ethereum) return;
+    
     window.ethereum.on('accountsChanged', (accounts) => {
       this.userAddress = accounts[0] || null;
       if (this.userAddress && this.provider) {
-        this.signer = this.provider.getSigner();
+        this.provider.getSigner().then(s => this.signer = s);
       }
       window.dispatchEvent(
         new CustomEvent('metamask:accountChanged', { detail: accounts[0] })
@@ -118,19 +122,19 @@ class MetaMask {
   }
 
   createMessageHash(recordId, patientName, diagnosis, recordDate, providerName, signerAddress) {
-    return ethers.solidityKeccak256(
+    return ethers.solidityPackedKeccak256(
       ['string', 'string', 'string', 'string', 'string', 'address'],
       [recordId, patientName, diagnosis, recordDate, providerName, signerAddress]
     );
   }
 
   async signMessageHash(messageHash) {
-    if (!messageHash || !messageHash.startsWith('0x') || messageHash.length < 66) {
+    if (!messageHash || !messageHash.startsWith('0x')) {
       throw new Error('Invalid messageHash format');
     }
 
     if (!this.userAddress) {
-      throw new Error('Wallet not connected. Please connect MetaMask first.');
+      throw new Error('Wallet not connected');
     }
 
     try {
@@ -171,7 +175,7 @@ class MetaMask {
 
   getContractWithSigner() {
     if (!this.signer) {
-      throw new Error('Signer not ready. Please connect MetaMask first.');
+      throw new Error('Signer not ready');
     }
     return new ethers.Contract(
       this.CONTRACT_ADDRESS,
@@ -220,7 +224,8 @@ class MetaMask {
       };
     } catch (error) {
       console.error('Balance fetch failed:', error.message);
-      throw error;
+      // Return 0 instead of crashing
+      return { wei: '0', pol: 0 };
     }
   }
 
@@ -258,10 +263,10 @@ class MetaMask {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('instituteToken')}`
+          'Authorization': `Bearer ${localStorage.getItem('hospitalToken')}`
         },
         body: JSON.stringify({
-          ...signedData.certData,
+          ...signedData.recordData,
           messageHash: signedData.messageHash,
           signature: signedData.signature,
           signerAddress: signedData.signerAddress
@@ -290,22 +295,22 @@ class MetaMask {
       return Number(ethers.formatEther(balWei));
     } catch (error) {
       console.error('Balance fetch failed:', error.message);
-      throw error;
+      return 0;
     }
   }
 
-  async verifyCertificate(certId) {
+  async verifyRecord(recordId) {
     try {
       const contract = this.getContractWithSigner();
-      const cert = await contract.verifyCertificate(certId);
+      const rec = await contract.verifyRecord(recordId);
 
       return {
-        exists: cert.exists,
-        studentName: cert.studentName,
-        courseName: cert.courseName,
-        issueDate: cert.issueDate,
-        issuerName: cert.issuerName,
-        issuer: cert.issuer
+        exists: rec.exists,
+        patientName: rec.patientName,
+        diagnosis: rec.diagnosis,
+        recordDate: rec.recordDate,
+        providerName: rec.providerName,
+        provider: rec.provider
       };
     } catch (error) {
       console.error('Verification failed:', error.message);
@@ -317,25 +322,6 @@ class MetaMask {
     return this.userAddress;
   }
 
-  getProvider() {
-    return this.provider;
-  }
-
-  getSigner() {
-    return this.signer;
-  }
-
-  isConnected() {
-    return !!this.userAddress;
-  }
-
-  disconnect() {
-    this.userAddress = null;
-    this.provider = null;
-    this.signer = null;
-    this.chainId = null;
-  }
-
   getNetworkInfo() {
     return {
       networkName: 'Local Hardhat',
@@ -344,6 +330,13 @@ class MetaMask {
       blockExplorer: this.BLOCK_EXPLORER,
       contractAddress: this.CONTRACT_ADDRESS
     };
+  }
+
+  disconnect() {
+    this.userAddress = null;
+    this.provider = null;
+    this.signer = null;
+    this.chainId = null;
   }
 }
 

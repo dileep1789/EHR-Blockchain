@@ -55,8 +55,15 @@ class BlockchainService {
   }
 
   async getHospitalBalance(address) {
-    const bal = await this.contract.hospitalBalance(address);
-    return ethers.BigNumber.from(bal);
+    try {
+      if (!address || address === '-') return ethers.BigNumber.from(0);
+      const bal = await this.contract.hospitalBalance(address);
+      return ethers.BigNumber.from(bal);
+    } catch (error) {
+      console.error(`❌ Error fetching balance for ${address}:`, error.message);
+      // Return 0 instead of throwing to prevent route crash
+      return ethers.BigNumber.from(0);
+    }
   }
 
   async computeRecordHash(recordData, signerAddress) {

@@ -25,11 +25,14 @@ const WalletPage = () => {
     connected: metamaskConnected, 
     address: metamaskAddress, 
     balance: metamaskBalance,
+    contractBalance,
     deposit: depositToContract,
     connect: connectMetaMask,
     loading: metamaskLoading,
     error: metamaskError
   } = useMetaMaskContext();
+
+  const displayBalance = metamaskConnected && contractBalance ? contractBalance : walletData.balance;
 
   useEffect(() => {
     // Only load wallet data if MetaMask is connected
@@ -66,11 +69,11 @@ const WalletPage = () => {
       }
 
       // Step 2: Get dashboard stats for total records
-      let totalCertificates = 0;
+      let totalRecordsCount = 0;
       try {
         const dashboardResponse = await hospitalAPI.getDashboard();
         const dashboardData = dashboardResponse.data || {};
-        totalRecords =
+        totalRecordsCount =
           dashboardData.totalRecordsIssued ??
           dashboardData.totalRecords ??
           dashboardData.total_records ??
@@ -78,7 +81,7 @@ const WalletPage = () => {
           dashboardData.totalCertificates ??
           0;
       } catch {
-        totalCertificates = 0;
+        totalRecordsCount = 0;
       }
 
       // Step 3: Get balance from payment/balance endpoint using wallet address
@@ -95,7 +98,7 @@ const WalletPage = () => {
       }
 
       const totalGasSpentEstimate = (
-        parseFloat(estimatedGasCost || '0') * Number(totalRecords || 0)
+        parseFloat(estimatedGasCost || '0') * Number(totalRecordsCount || 0)
       ).toFixed(4);
 
       try {
@@ -130,7 +133,7 @@ const WalletPage = () => {
           gasSpent: gasSpentPol,
           walletAddress: walletAddr,
           estimatedGasCost,
-          totalCertificates: Number(totalCertificates || 0),
+          totalRecords: Number(totalRecordsCount || 0),
           totalGasSpentEstimate
         });
       } catch (balanceErr) {
@@ -141,7 +144,7 @@ const WalletPage = () => {
           balance: '0.00',
           gasSpent: '0.00',
           estimatedGasCost,
-          totalRecords: Number(totalRecords || 0),
+          totalRecords: Number(totalRecordsCount || 0),
           totalGasSpentEstimate
         }));
         setError('Unable to load balance information. Please try again later.');
@@ -261,7 +264,7 @@ const WalletPage = () => {
           </p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              {walletData.balance}
+              {displayBalance}
             </h3>
             <span className="text-[10px] md:text-xs font-bold opacity-70 uppercase">
               POL
@@ -301,7 +304,7 @@ const WalletPage = () => {
             <p className="text-[11px] font-bold text-gray-500 mb-1">
               Prepaid Balance
             </p>
-            <p className="text-2xl font-extrabold text-black">{walletData.balance}</p>
+            <p className="text-2xl font-extrabold text-black">{displayBalance}</p>
           </div>
           <div className="bg-white p-4 rounded-xl border-l-4 border-blue-400 shadow-sm border border-gray-50 flex flex-col justify-center min-h-[90px]">
             <p className="text-[11px] font-bold text-gray-500 mb-1">
