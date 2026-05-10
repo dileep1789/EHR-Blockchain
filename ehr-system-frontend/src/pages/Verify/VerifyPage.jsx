@@ -111,10 +111,10 @@ export default function VerifyPage() {
       recordId: verificationResult.recordId,
       patientName: verificationResult.patientName,
       diagnosis: verificationResult.diagnosis,
-      instituteName: verificationResult.instituteName,
+      hospitalName: verificationResult.instituteName,
       recordDate: verificationResult.recordDate,
-      grade: verificationResult.medicalStatus,
-      instituteLogoUrl: verificationResult.hospitalLogoUrl
+      medicalStatus: verificationResult.medicalStatus,
+      hospitalLogoUrl: verificationResult.hospitalLogoUrl
     })
     setIsGeneratingPdf(true)
   }
@@ -149,7 +149,12 @@ export default function VerifyPage() {
         }
 
         const url = URL.createObjectURL(blob)
-        window.location.href = url
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `HealthRecord_${pdfCertificate.recordId}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
         window.setTimeout(() => URL.revokeObjectURL(url), 30000)
       } catch (error) {
         console.error('Failed to generate record PDF:', error)

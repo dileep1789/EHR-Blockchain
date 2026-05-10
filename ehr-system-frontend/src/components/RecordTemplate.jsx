@@ -26,10 +26,10 @@ export default function RecordTemplate({ record }) {
     recordId,
     patientName,
     diagnosis,
-    hospitalName: instituteName,
+    hospitalName,
     recordDate,
-    medicalStatus: grade,
-    hospitalLogoUrl: instituteLogoUrl
+    medicalStatus,
+    hospitalLogoUrl
   } = record
 
   const safeRecordId = recordId || 'N/A'
@@ -41,9 +41,9 @@ export default function RecordTemplate({ record }) {
       
       <div className="record-top">
         <div className="record-box">
-          {instituteLogoUrl && !logoError ? (
+          {hospitalLogoUrl && !logoError ? (
             <img
-              src={instituteLogoUrl}
+              src={hospitalLogoUrl}
               alt={hospitalName || 'Hospital logo'}
               className="w-24 h-24 object-contain"
               crossOrigin="anonymous"
