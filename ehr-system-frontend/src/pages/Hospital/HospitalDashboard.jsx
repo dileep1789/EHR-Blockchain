@@ -37,22 +37,19 @@ const HospitalDashboard = () => {
       // Fetch dashboard stats
       const dashboardResponse = await hospitalAPI.getDashboard();
       const dashboardData = dashboardResponse.data || {};
-      const totalCerts =
-        dashboardData.totalCertificatesIssued ??
-        dashboardData.totalCertificates ??
-        dashboardData.total_certificates ??
-        dashboardData.data?.totalCertificatesIssued ??
-        dashboardData.data?.totalCertificates ??
-        0;
+      const totalCerts = dashboardData.statistics?.totalRecords ?? 0;
       
       // Fetch wallet balance
       let walletBalance = "0.00";
+      let walletBalanceFailed = false;
       if (profile?.wallet_address) {
         try {
           const balanceResponse = await paymentAPI.getBalance(profile.wallet_address);
           walletBalance = parseFloat(balanceResponse.data?.data?.balancePol || '0').toFixed(4);
         } catch (err) {
           console.error('Failed to load balance:', err);
+          walletBalance = 'Error';
+          walletBalanceFailed = true;
         }
       }
 
@@ -64,7 +61,7 @@ const HospitalDashboard = () => {
       setStats([
           { label: "Total Records", value: totalCerts.toString() },
         { label: "Verification Status", value: (profile?.verification_status || "Unknown").toUpperCase() },
-        { label: "Wallet Balance", value: walletBalance },
+        { label: "Wallet Balance", value: walletBalanceFailed ? 'Error' : walletBalance },
       ]);
     } catch (err) {
       setError(err.message || 'Failed to load dashboard data');

@@ -3,6 +3,7 @@ const { ethers } = require('ethers');
 const router = express.Router();
 
 const blockchainService = require('../utils/blockchain');
+const GasLedger = require('../models/GasLedger');
 
 /**
  * GET /api/payment/gas-cost
@@ -25,7 +26,8 @@ router.get('/gas-cost', async (req, res) => {
 
 /**
  * GET /api/payment/balance?address=<wallet>
- * Returns prepaid balance and gas spent for a university wallet.
+ * Returns prepaid balance and gas spent for a hospital wallet.
+ * Gas spending is tracked in database ledger and synced with on-chain state.
  */
 router.get('/balance', async (req, res) => {
   try {
@@ -34,17 +36,35 @@ router.get('/balance', async (req, res) => {
       return res.status(400).json({ success: false, error: 'address is required' });
     }
 
+    // Ensure ledger exists for this wallet
+    await GasLedger.getOrCreate(address);
+
+    // Get current balance from on-chain contract
     const balanceWei = await blockchainService.getHospitalBalance(address);
-    const gasSpentWei = ethers.BigNumber.from(0); // not tracked in contract
+
+    // Deposits happen directly through MetaMask, so rebuild deposited total
+    // from contract events before calculating spent.
+    const deposits = await blockchainService.getGasFundDeposits(address);
+    if (deposits.totalWei && deposits.totalWei !== '0') {
+      await GasLedger.syncDeposits(address, deposits.totalWei, deposits.lastTxHash);
+    }
+
+    // Sync ledger with on-chain state (calculates spent = deposited - remaining)
+    const ledger = await GasLedger.syncBalance(address, balanceWei.toString());
 
     res.json({
       success: true,
       data: {
-        address,
+        address: address.toLowerCase(),
         balanceWei: balanceWei.toString(),
         balancePol: ethers.utils.formatEther(balanceWei),
-        gasSpentWei: gasSpentWei.toString(),
-        gasSpentPol: ethers.utils.formatEther(gasSpentWei)
+        gasSpentWei: ledger.balance_spent,
+        gasSpentPol: ethers.utils.formatEther(ledger.balance_spent),
+        totalDepositedWei: ledger.balance_deposited,
+        totalDepositedPol: ethers.utils.formatEther(ledger.balance_deposited),
+        depositEventCount: deposits.count || 0,
+        lastSyncTime: ledger.last_sync_time,
+        lastDepositTx: ledger.last_deposit_tx
       }
     });
   } catch (error) {
@@ -82,13 +102,14 @@ router.post('/issue-with-metamask', async (req, res) => {
 
     const txResult = await blockchainService.issueWithMetaMaskSignature(recordData, message_hash, signature, signer_address);
 
-    // Gas ledger logging (MongoDB version - optional, add GasCost model if needed)
+    // Sync gas ledger after successful record issuance
     try {
+      await GasLedger.getOrCreate(signer_address);
       const gasCostWei = await blockchainService.getGasCostWei();
       const gasCostPol = ethers.utils.formatEther(gasCostWei);
-      console.log(`Gas cost logged: certId=${certId}, wallet=${signerAddress}, cost=${gasCostPol} POL, tx=${txResult.txHash}`);
+      console.log(`✅ Record issued: recordId=${record_id}, wallet=${signer_address}, gasCost=${gasCostPol} POL, tx=${txResult.txHash}`);
     } catch (loggingError) {
-      console.warn('Gas cost logging skipped:', loggingError.message);
+      console.warn('⚠️  Gas ledger sync skipped:', loggingError.message);
     }
 
     res.json({

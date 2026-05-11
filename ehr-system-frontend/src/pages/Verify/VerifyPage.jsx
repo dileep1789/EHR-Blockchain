@@ -42,10 +42,28 @@ export default function VerifyPage() {
           recordId: response.data.record.record_id,
           patientId: response.data.record.patient_id,
           patientName: response.data.record.patient_name || response.data.record.fullName,
+          patientAge: response.data.record.patient_age,
+          patientGender: response.data.record.patient_gender,
+          bloodGroup: response.data.record.blood_group,
+          patientPhone: response.data.record.patient_phone,
+          patientAddress: response.data.record.patient_address,
+          insuranceNo: response.data.record.insurance_no,
           diagnosis: response.data.record.diagnosis || response.data.record.course_name || response.data.record.certificate_title,
-          instituteName: response.data.record.institute_name || response.data.record.instituteName,
+          instituteName: response.data.record.hospital_name || response.data.record.institute_name,
           recordDate: response.data.record.record_date || response.data.record.recordDate,
           medicalStatus: response.data.record.medical_status || response.data.record.grade || response.data.record.status,
+          visitType: response.data.record.visit_type,
+          department: response.data.record.department,
+          physician: response.data.record.physician,
+          chiefComplaint: response.data.record.chief_complaint,
+          temperature: response.data.record.temperature,
+          bloodPressure: response.data.record.blood_pressure,
+          heartRate: response.data.record.heart_rate,
+          respiratoryRate: response.data.record.respiratory_rate,
+          oxygenSaturation: response.data.record.oxygen_saturation,
+          weight: response.data.record.weight,
+          height: response.data.record.height,
+          bmi: response.data.record.bmi,
           blockchainTxHash: response.data.record.blockchain_tx_hash,
           blockchainVerified: response.data.onchain?.verified || false,
           hospitalLogoUrl: logoUrl
@@ -97,70 +115,142 @@ export default function VerifyPage() {
 
   useEffect(() => {
     if (downloadRequested && verificationResult?.valid) {
-      openCertificatePdf()
+      setPdfCertificate({
+        recordId: verificationResult.recordId,
+        patientName: verificationResult.patientName,
+        diagnosis: verificationResult.diagnosis,
+        hospitalName: verificationResult.instituteName,
+        recordDate: verificationResult.recordDate,
+        medicalStatus: verificationResult.medicalStatus,
+        hospitalLogoUrl: verificationResult.hospitalLogoUrl
+      })
+      setIsGeneratingPdf(true)
       setDownloadRequested(false)
     }
   }, [downloadRequested, verificationResult])
 
-  const openCertificatePdf = () => {
+  const handleDownloadPdf = () => {
+    console.log('Download button clicked')
+    console.log('verificationResult:', verificationResult)
+    
     if (!verificationResult?.valid) {
+      console.error('Record not valid, cannot download')
+      alert('Record must be valid to download. Please verify a record first.')
       return
     }
 
-    setPdfCertificate({
+    console.log('Setting PDF certificate and triggering generation...')
+    
+    // Set up the PDF certificate with all data including logo
+    const pdfData = {
       recordId: verificationResult.recordId,
       patientName: verificationResult.patientName,
+      patientAge: verificationResult.patientAge,
+      patientGender: verificationResult.patientGender,
+      bloodGroup: verificationResult.bloodGroup,
+      patientPhone: verificationResult.patientPhone,
+      patientAddress: verificationResult.patientAddress,
+      patientId: verificationResult.patientId,
+      insuranceNo: verificationResult.insuranceNo,
       diagnosis: verificationResult.diagnosis,
       hospitalName: verificationResult.instituteName,
       recordDate: verificationResult.recordDate,
       medicalStatus: verificationResult.medicalStatus,
-      hospitalLogoUrl: verificationResult.hospitalLogoUrl
-    })
+      hospitalLogoUrl: verificationResult.hospitalLogoUrl,
+      visitDate: verificationResult.recordDate,
+      visitType: verificationResult.visitType,
+      department: verificationResult.department,
+      physician: verificationResult.physician,
+      chiefComplaint: verificationResult.chiefComplaint,
+      temperature: verificationResult.temperature,
+      bloodPressure: verificationResult.bloodPressure,
+      heartRate: verificationResult.heartRate,
+      respiratoryRate: verificationResult.respiratoryRate,
+      oxygenSaturation: verificationResult.oxygenSaturation,
+      weight: verificationResult.weight,
+      height: verificationResult.height,
+      bmi: verificationResult.bmi
+    }
+    
+    console.log('PDF data prepared:', pdfData)
+    setPdfCertificate(pdfData)
     setIsGeneratingPdf(true)
   }
 
   useEffect(() => {
     if (!pdfCertificate || !isGeneratingPdf) {
+      console.log('PDF generation effect: Waiting for pdfCertificate or isGeneratingPdf')
       return
     }
 
+    console.log('PDF generation effect started')
     let isCancelled = false
 
     const waitForTemplate = async () => {
-      for (let i = 0; i < 60; i += 1) {
+      console.log('Waiting for template ref...')
+      // Wait up to 3 seconds for template to be available and rendered
+      for (let i = 0; i < 300; i += 1) {
         if (templateRef.current) {
+          console.log('Template ref found at iteration', i)
+          // Give React time to render the content
+          await new Promise((resolve) => setTimeout(resolve, 50))
           return true
         }
         await new Promise((resolve) => requestAnimationFrame(resolve))
       }
+      console.warn('Template not found after timeout (300 iterations)')
       return false
     }
 
     const generatePdf = async () => {
       try {
+        console.log('Starting PDF generation...')
         const ready = await waitForTemplate()
         if (!ready || isCancelled) {
+          console.error('Template not ready or generation cancelled')
+          alert('Failed to load record template. Please try again.')
           return
         }
 
-        const blob = await generateRecordPdfBlob(templateRef.current)
+        console.log('Template ready, calling generateRecordPdfBlob...')
+        const templateElement = templateRef.current
+        console.log('Template element:', templateElement)
+        console.log('Template element HTML:', templateElement?.innerHTML?.substring(0, 200))
+        
+        const blob = await generateRecordPdfBlob(templateElement)
         if (!blob || isCancelled) {
+          console.error('PDF blob generation failed or cancelled')
+          alert('Failed to generate PDF. Please try again.')
           return
         }
 
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `HealthRecord_${pdfCertificate.recordId}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.setTimeout(() => URL.revokeObjectURL(url), 30000)
+        console.log('PDF blob created successfully:', blob.size, 'bytes')
+        if (!isCancelled) {
+          console.log('Triggering download...')
+          try {
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `HealthRecord_${pdfCertificate.recordId}.pdf`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            console.log('Download triggered successfully')
+            window.setTimeout(() => {
+              URL.revokeObjectURL(url)
+              console.log('Object URL revoked')
+            }, 30000)
+          } catch (downloadError) {
+            console.error('Download error:', downloadError)
+            alert(`Download failed: ${downloadError.message}`)
+          }
+        }
       } catch (error) {
         console.error('Failed to generate record PDF:', error)
-        alert('Failed to generate record PDF. Please try again.')
+        alert(`Failed to generate record PDF: ${error.message}`)
       } finally {
         if (!isCancelled) {
+          console.log('PDF generation complete, resetting state')
           setIsGeneratingPdf(false)
         }
       }
@@ -169,6 +259,7 @@ export default function VerifyPage() {
     generatePdf()
 
     return () => {
+      console.log('PDF generation effect cleanup')
       isCancelled = true
     }
   }, [pdfCertificate, isGeneratingPdf])
@@ -274,28 +365,32 @@ export default function VerifyPage() {
                       <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
                         <p className="text-sm text-gray-600 mb-2 flex items-center gap-1"><span className="material-icons text-green-600" style={{fontSize: '16px'}}>check_circle</span> Blockchain Verified</p>
                         <p className="text-xs text-gray-700 font-mono break-all">{verificationResult.blockchainTxHash}</p>
-                        <a
-                          href={`https://amoy.polygonscan.com/tx/${verificationResult.blockchainTxHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-block underline"
-                        >
-                          View on Polygonscan →
-                        </a>
+                        {typeof window.MetaMask !== 'undefined' && new window.MetaMask().getExplorerUrl(verificationResult.blockchainTxHash, 'tx') ? (
+                          <a
+                            href={new window.MetaMask().getExplorerUrl(verificationResult.blockchainTxHash, 'tx')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-block underline"
+                          >
+                            View on Block Explorer →
+                          </a>
+                        ) : (
+                          <p className="text-xs text-gray-600 mt-2">Local Network - TX visible on local chain</p>
+                        )}
                       </div>
                     )}
 
                     {/* Network hint card */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                      <p className="text-sm font-semibold text-blue-900 mb-2">Network hint</p>
+                      <p className="text-sm font-semibold text-blue-900 mb-2">Network Information</p>
                       <div className="text-xs text-blue-900/80 space-y-1">
-                        <p><span className="font-semibold">Network:</span> Polygon Amoy (Testnet)</p>
-                        <p><span className="font-semibold">Chain ID:</span> 80002</p>
-                        <p><span className="font-semibold">Explorer:</span> amoy.polygonscan.com</p>
+                        <p><span className="font-semibold">Network:</span> {typeof window.MetaMask !== 'undefined' ? new window.MetaMask().getNetworkName() : 'Connected'}</p>
+                        <p><span className="font-semibold">Chain ID:</span> {typeof window.MetaMask !== 'undefined' ? new window.MetaMask().chainId : 'Unknown'}</p>
+                        <p><span className="font-semibold">RPC:</span> {typeof window.MetaMask !== 'undefined' && new window.MetaMask().chainId === 31337 ? 'http://127.0.0.1:8545' : 'Connected Network'}</p>
                         {verificationResult.blockchainTxHash ? (
-                          <p className="text-blue-800/80">Use the TX hash above to inspect the on-chain record.</p>
+                          <p className="text-blue-800/80 mt-2">✓ Record is verified on the blockchain network.</p>
                         ) : (
-                          <p className="text-blue-800/80">No on-chain hash available for this record.</p>
+                          <p className="text-blue-800/80 mt-2">No on-chain hash available for this record.</p>
                         )}
                       </div>
                     </div>
@@ -303,22 +398,17 @@ export default function VerifyPage() {
                     {/* Action Buttons */}
                     <div className="flex flex-wrap justify-center gap-4 mt-6">
                       <button
-                        onClick={openCertificatePdf}
+                        onClick={handleDownloadPdf}
                         disabled={isGeneratingPdf}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2 rounded-full transition-colors flex items-center gap-2 disabled:opacity-60"
+                        className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-full transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <span className="material-icons text-base">description</span> View HealthRecord
-                      </button>
-                      <button
-                        onClick={() => navigate(`/patient/history?patientId=${verificationResult.patientId}`)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-full transition-colors flex items-center gap-2"
-                      >
-                        <span className="material-icons text-base">history</span> View History
+                        <span className="material-icons text-base">{isGeneratingPdf ? 'hourglass_empty' : 'download'}</span> {isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}
                       </button>
                       <button
                         onClick={() => {
                           setCertificateId('')
                           setVerificationResult(null)
+                          setPdfCertificate(null)
                         }}
                         className="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-6 py-2 rounded-full transition-colors"
                       >

@@ -142,7 +142,7 @@ export default function PatientHistory() {
     try {
       setLoading(true)
       const response = await patientAPI.getCareerInsights(true)
-      setCareerInsights(response.data.insights)
+      setCareInsights(response.data.insights)
     } catch (err) {
       setError('Failed to regenerate care insights')
     } finally {
@@ -164,6 +164,19 @@ export default function PatientHistory() {
     return records
   }
 
+  const getExplorerUrl = (txHash) => {
+    if (typeof window.MetaMask === 'undefined' || !txHash) {
+      return ''
+    }
+
+    try {
+      return new window.MetaMask().getExplorerUrl(txHash, 'tx') || ''
+    } catch (error) {
+      console.error('Failed to resolve explorer URL:', error)
+      return ''
+    }
+  }
+
   const buildCertificateData = (cert) => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
     const serverUrl = baseUrl.replace(/\/api\/?$/, '')
@@ -178,10 +191,10 @@ export default function PatientHistory() {
       recordId: cert.record_id,
       patientName: patientData.name || cert.patient_name || cert.full_name,
       diagnosis: cert.certificate_title || cert.diagnosis || cert.course_name,
-      instituteName: cert.institute_name,
+      hospitalName: cert.hospital_name || cert.institute_name,
       recordDate: cert.record_date,
-      grade: cert.grade,
-      instituteLogoUrl: logoUrl
+      medicalStatus: cert.medical_status || cert.grade || cert.status,
+      hospitalLogoUrl: logoUrl
     }
   }
 
@@ -189,8 +202,14 @@ export default function PatientHistory() {
     setPdfCertificate(buildCertificateData(cert))
 
     const waitForTemplate = async () => {
-      for (let i = 0; i < 10; i += 1) {
-        if (templateRef.current) {
+      const expectedRecordId = cert.record_id
+      for (let i = 0; i < 60; i += 1) {
+        const templateText = templateRef.current?.textContent || ''
+        if (
+          templateRef.current &&
+          templateRef.current.offsetHeight > 0 &&
+          templateText.includes(expectedRecordId)
+        ) {
           return true
         }
         await new Promise((resolve) => requestAnimationFrame(resolve))
@@ -408,7 +427,8 @@ export default function PatientHistory() {
                     <div className="mb-3 md:mb-4 bg-gray-50 rounded-lg p-2 md:p-3 border border-gray-200">
                       <p className="text-xs text-gray-600 font-semibold mb-1">Blockchain Transaction:</p>
                       <a 
-                        href={`https://amoy.polygonscan.com/tx/${cert.blockchain_tx_hash}`}
+                        href={getExplorerUrl(cert.blockchain_tx_hash) || '#'}
+                        onClick={(e) => { if (!getExplorerUrl(cert.blockchain_tx_hash)) e.preventDefault(); }}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-blue-600 hover:text-blue-800 font-mono break-all underline flex items-center gap-1"
@@ -450,7 +470,7 @@ export default function PatientHistory() {
         </div>
 
         {/* Institutions Grid */}
-        {institutions.length > 0 && (
+        {hospitals.length > 0 && (
           <div className="mb-12">
             {/* Desktop View */}
             <div className="hidden md:block">
@@ -458,7 +478,7 @@ export default function PatientHistory() {
                 <span className="material-icons">account_balance</span> Hospitals & Clinics
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {institutions.map((inst, index) => {
+              {hospitals.map((inst, index) => {
                 const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
                 const serverUrl = baseUrl.replace('/api', '')
                 const logoUrl = inst.logo_url ? `${serverUrl}${inst.logo_url}` : null
@@ -489,13 +509,13 @@ export default function PatientHistory() {
               >
                 <div className="flex items-center gap-2">
                   <span className="material-icons text-purple-600">account_balance</span>
-                  <h2 className="text-lg font-bold text-purple-600">Hospitals ({institutions.length})</h2>
+                  <h2 className="text-lg font-bold text-purple-600">Hospitals ({hospitals.length})</h2>
                 </div>
                 <span className="material-icons text-purple-600">{institutionsExpanded ? 'expand_less' : 'expand_more'}</span>
               </button>
               {institutionsExpanded && (
                 <div className="space-y-3 mb-6">
-                  {institutions.map((inst, index) => {
+                  {hospitals.map((inst, index) => {
                     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
                     const serverUrl = baseUrl.replace('/api', '')
                     const logoUrl = inst.logo_url ? `${serverUrl}${inst.logo_url}` : null

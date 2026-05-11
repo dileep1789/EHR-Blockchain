@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { Copy, CheckCircle2 } from "lucide-react";
 import { hospitalAPI, paymentAPI } from "../../services/api";
 import { useMetaMaskContext } from "../../context/MetaMaskContext";
@@ -11,7 +11,8 @@ const WalletPage = () => {
     walletAddress: '-',
     estimatedGasCost: '0.009000',
     totalRecords: 0,
-    totalGasSpentEstimate: '0.0000'
+    totalGasSpentEstimate: '0.0000',
+    balanceError: false
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +33,9 @@ const WalletPage = () => {
     error: metamaskError
   } = useMetaMaskContext();
 
-  const displayBalance = metamaskConnected && contractBalance ? contractBalance : walletData.balance;
+  const displayBalance = walletData.balanceError
+    ? 'Error'
+    : (metamaskConnected && contractBalance ? contractBalance : walletData.balance);
 
   useEffect(() => {
     // Only load wallet data if MetaMask is connected
@@ -77,6 +80,8 @@ const WalletPage = () => {
           dashboardData.totalRecordsIssued ??
           dashboardData.totalRecords ??
           dashboardData.total_records ??
+          dashboardData.statistics?.totalRecords ??
+          dashboardData.statistics?.totalCertificates ??
           dashboardData.totalCertificatesIssued ??
           dashboardData.totalCertificates ??
           0;
@@ -96,10 +101,6 @@ const WalletPage = () => {
       } catch {
         estimatedGasCost = '0.009000'
       }
-
-      const totalGasSpentEstimate = (
-        parseFloat(estimatedGasCost || '0') * Number(totalRecordsCount || 0)
-      ).toFixed(4);
 
       try {
         const balanceResponse = await paymentAPI.getBalance(walletAddr);
@@ -128,24 +129,27 @@ const WalletPage = () => {
           gasSpentPol = (parseFloat(gasSpentWeiRaw || '0') / 1e18).toFixed(4);
         }
 
+        const totalGasSpentEstimate = gasSpentPol;
+
         setWalletData({
           balance: balancePol,
           gasSpent: gasSpentPol,
           walletAddress: walletAddr,
           estimatedGasCost,
           totalRecords: Number(totalRecordsCount || 0),
-          totalGasSpentEstimate
+          totalGasSpentEstimate,
+          balanceError: false
         });
       } catch (balanceErr) {
-        // Fallback: show wallet address but unable to load balance
+        console.error('Failed to load balance information:', balanceErr);
+        // Show an explicit error state instead of silently returning zero
         setWalletData(prev => ({
           ...prev,
           walletAddress: walletAddr,
-          balance: '0.00',
-          gasSpent: '0.00',
           estimatedGasCost,
           totalRecords: Number(totalRecordsCount || 0),
-          totalGasSpentEstimate
+          totalGasSpentEstimate: prev.gasSpent || '0.0000',
+          balanceError: true
         }));
         setError('Unable to load balance information. Please try again later.');
       }
@@ -308,11 +312,11 @@ const WalletPage = () => {
           </div>
           <div className="bg-white p-4 rounded-xl border-l-4 border-blue-400 shadow-sm border border-gray-50 flex flex-col justify-center min-h-[90px]">
             <p className="text-[11px] font-bold text-gray-500 mb-1">
-              Total GAS spent (estimate)
+              Total GAS spent
             </p>
             <p className="text-2xl font-extrabold text-black">{walletData.totalGasSpentEstimate}</p>
             <p className="text-[10px] text-gray-500 font-semibold mt-1">
-              {walletData.totalRecords} records × {walletData.estimatedGasCost} POL
+              Actual contract deduction from prepaid balance
             </p>
           </div>
         </div>

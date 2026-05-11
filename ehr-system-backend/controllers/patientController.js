@@ -38,8 +38,9 @@ exports.getDashboard = async (req, res) => {
         birthdate: patient.birthdate,
         isPortfolioPublic: patient.is_portfolio_public,
         profile_photo_url: patient.profile_photo_url,
-        cv_url: patient.cv_url,
-        github_url: patient.github_url
+        cv_url: patient.cv_url || patient.medical_history_url,
+        blood_group: patient.blood_group,
+        github_url: patient.github_url || patient.blood_group
       },
       records,
       statistics: {
@@ -163,13 +164,20 @@ exports.updateProfile = async (req, res) => {
     const patientId = req.user.userId;
     const updates = {};
 
-    if (req.body.github_url) updates.github_url = req.body.github_url;
     if (req.body.full_name) updates.full_name = req.body.full_name;
+    if (req.body.email) updates.email = req.body.email;
+    if (req.body.gender) updates.gender = req.body.gender;
+    if (req.body.birthdate) updates.birthdate = req.body.birthdate;
+    if (req.body.blood_group || req.body.github_url) {
+      updates.blood_group = req.body.blood_group || req.body.github_url;
+      updates.github_url = req.body.blood_group || req.body.github_url;
+    }
     if (req.files?.profile_photo?.[0]) {
-      updates.profile_photo_url = `/uploads/patients/${req.files.profile_photo[0].filename}`;
+      updates.profile_photo_url = `/uploads/patients/photos/${req.files.profile_photo[0].filename}`;
     }
     if (req.files?.cv?.[0]) {
-      updates.cv_url = `/uploads/patients/${req.files.cv[0].filename}`;
+      updates.cv_url = `/uploads/patients/cvs/${req.files.cv[0].filename}`;
+      updates.medical_history_url = updates.cv_url;
     }
 
     const updated = await Patient.updateProfile(patientId, updates);

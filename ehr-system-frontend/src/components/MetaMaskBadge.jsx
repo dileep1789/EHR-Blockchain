@@ -9,8 +9,20 @@ const MetaMaskBadge = ({ connected, address, balance, loading, error, connect })
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
 
-  const getPolygonExplorerUrl = (addr) => {
-    return `https://amoy.polygonscan.com/address/${addr}`;
+  const getExplorerUrl = (addr, type = 'address') => {
+    if (!address) return null;
+    // Determine explorer URL based on network
+    if (typeof window.MetaMask !== 'undefined') {
+      const instance = new window.MetaMask();
+      if (instance.chainId === 31337) {
+        return null; // No public explorer for local network
+      } else if (instance.chainId === 80002) {
+        return `https://amoy.polygonscan.com/${type}/${addr}`;
+      } else if (instance.chainId === 137) {
+        return `https://polygonscan.com/${type}/${addr}`;
+      }
+    }
+    return null; // No explorer for unknown networks
   };
 
   if (loading) {
@@ -53,7 +65,7 @@ const MetaMaskBadge = ({ connected, address, balance, loading, error, connect })
         <CheckCircle size={16} className="text-green-600" />
         <span className="font-mono text-sm hidden md:inline">{shortenAddress(address)}</span>
         <span className="text-xs font-medium text-green-600 hidden lg:inline">
-          {balance} POL
+          {balance} {typeof window.MetaMask !== 'undefined' && new window.MetaMask().chainId === 31337 ? 'ETH' : 'POL'}
         </span>
       </button>
 
@@ -82,7 +94,7 @@ const MetaMaskBadge = ({ connected, address, balance, loading, error, connect })
                 <p className="text-xs text-gray-500 mb-1">Network</p>
                 <p className="font-medium text-purple-700 flex items-center gap-1">
                   <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
-                  Polygon Amoy Testnet
+                  {address && typeof window.MetaMask !== 'undefined' && new window.MetaMask().getNetworkName ? new window.MetaMask().getNetworkName() : 'Connected Network'}
                 </p>
               </div>
 
@@ -95,19 +107,26 @@ const MetaMaskBadge = ({ connected, address, balance, loading, error, connect })
               {/* Balance */}
               <div className="bg-green-50 rounded p-2">
                 <p className="text-xs text-gray-500 mb-1">Balance</p>
-                <p className="font-bold text-green-700 text-lg">{balance} POL</p>
+                <p className="font-bold text-green-700 text-lg">{balance} {address && typeof window.MetaMask !== 'undefined' && new window.MetaMask().chainId === 31337 ? 'ETH' : 'POL'}</p>
               </div>
 
               {/* View on Explorer */}
-              <a
-                href={getPolygonExplorerUrl(address)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-              >
-                <ExternalLink size={16} />
-                View on Polygonscan
-              </a>
+              {getExplorerUrl(address) ? (
+                <a
+                  href={getExplorerUrl(address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ExternalLink size={16} />
+                  View on Block Explorer
+                </a>
+              ) : (
+                <div className="flex items-center justify-center gap-2 w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed">
+                  <ExternalLink size={16} />
+                  Local Network (No Explorer)
+                </div>
+              )}
 
               {/* Info */}
               <div className="flex items-start gap-2 bg-blue-50 rounded p-2 text-xs text-blue-700">

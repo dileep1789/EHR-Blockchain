@@ -23,7 +23,6 @@ const HistoryPage = () => {
         const patientId = cert.patient_id || cert.student_id;
         const patientName = cert.patient_name || cert.student_name || cert.full_name || 'Patient';
         const txHash = cert.blockchain_tx_hash || '';
-        const hasTx = txHash && txHash !== 'Pending';
         return {
           recordId: cert.record_id,
           patientId,
@@ -33,7 +32,7 @@ const HistoryPage = () => {
           date: new Date(cert.record_date).toLocaleDateString(),
           tx: txHash || 'Pending',
           txUrl: '', // Disabled for local development
-          historyUrl: patientId ? `${baseUrl}/patient/history?patientId=${patientId}` : '',
+          historyUrl: patientId ? `${baseUrl}/public-record/${patientId}` : '',
           verifyUrl: cert.record_id
             ? `${baseUrl}/verify?recordId=${cert.record_id}&download=1`
             : ''

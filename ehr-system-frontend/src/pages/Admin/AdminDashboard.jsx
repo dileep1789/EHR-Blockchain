@@ -15,6 +15,7 @@ function StatCard({ title, value, accent }) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
+  const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -28,6 +29,15 @@ export default function Dashboard() {
       setError(null)
       const response = await adminAPI.getDashboard()
       setStats(response.data.statistics)
+      
+      // Load recent transactions
+      try {
+        const txResponse = await adminAPI.getRecentTransactions(5)
+        setTransactions(txResponse.data.data || [])
+      } catch (txErr) {
+        console.warn('Failed to load transactions:', txErr.message)
+        setTransactions([])
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load dashboard')
     } finally {
@@ -112,6 +122,75 @@ export default function Dashboard() {
             Manage Hospitals
           </button>
         </div>
+      </section>
+
+      <section className="mt-10 bg-white rounded-2xl shadow-[0_10px_22px_rgba(0,0,0,0.08)] px-8 py-6 transition-transform duration-200 hover:scale-[1.01]">
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Recent Blockchain Transactions</h3>
+        <div className="h-px bg-gray-300 mb-6" />
+        
+        {transactions.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <p>No blockchain transactions yet</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-gray-600 border-b border-gray-300">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Record ID</th>
+                  <th className="px-4 py-3 font-semibold">Patient</th>
+                  <th className="px-4 py-3 font-semibold">Hospital</th>
+                  <th className="px-4 py-3 font-semibold">TX Hash</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Link</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((tx) => {
+                  const explorerUrl = typeof window.MetaMask !== 'undefined' && new window.MetaMask().getExplorerUrl 
+                    ? new window.MetaMask().getExplorerUrl(tx.blockchain_tx_hash, 'tx')
+                    : null;
+                  
+                  return (
+                    <tr key={tx.record_id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-900">{tx.record_id.substring(0, 12)}...</td>
+                      <td className="px-4 py-3 text-gray-700">{tx.patient_name || '-'}</td>
+                      <td className="px-4 py-3 text-gray-700">{tx.hospital_name || '-'}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{tx.blockchain_tx_hash.substring(0, 10)}...{tx.blockchain_tx_hash.substring(tx.blockchain_tx_hash.length - 8)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          tx.blockchain_verified 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {tx.blockchain_verified ? 'Verified' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {explorerUrl ? (
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
+                          >
+                            View
+                            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M7 17L17 7" />
+                              <path d="M7 7h10v10" />
+                            </svg>
+                          </a>
+                        ) : (
+                          <span className="text-gray-500 text-sm">Local TX</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   )

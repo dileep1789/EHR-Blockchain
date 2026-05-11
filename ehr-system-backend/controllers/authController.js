@@ -29,7 +29,7 @@ const sendPatientVerificationEmail = async ({ name, email, token }) => {
 };
 
 // Patient Registration
-exports.registerStudent = async (req, res) => {
+exports.registerPatient = async (req, res) => {
   try {
     const { full_name, email, password, gender, birthdate } = req.body;
 
@@ -95,7 +95,7 @@ exports.registerStudent = async (req, res) => {
 };
 
 // Patient Login
-exports.loginStudent = async (req, res) => {
+exports.loginPatient = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -154,7 +154,7 @@ exports.getProfile = async (req, res) => {
 };
 
 // Verify patient email
-exports.verifyStudentEmail = async (req, res) => {
+exports.verifyPatientEmail = async (req, res) => {
   try {
     const { token } = req.query;
     if (!token) {
@@ -185,7 +185,7 @@ exports.verifyStudentEmail = async (req, res) => {
 };
 
 // Resend patient verification email
-exports.resendStudentVerification = async (req, res) => {
+exports.resendPatientVerification = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });

@@ -87,7 +87,6 @@ export default function Hospitals() {
       setError(err.response?.data?.error || err.message || 'Failed to revoke hospital')
     } finally {
       setActionLoading(prev => ({ ...prev, [instituteId]: false }))
-      setActionLoading(prev => ({ ...prev, [hospitalId]: false }))
     }
   }
 

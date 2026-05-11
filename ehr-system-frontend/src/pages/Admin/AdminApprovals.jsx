@@ -95,11 +95,11 @@ export default function Pending() {
     try {
       setError(null)
       const token = getAdminToken()
-      const isSameOrigin = new URL(fileUrl, window.location.href).origin === window.location.origin
-      if (!token || !isSameOrigin) {
+      if (!token) {
         window.open(fileUrl, '_blank', 'noopener,noreferrer')
         return
       }
+
       const response = await fetch(fileUrl, {
         headers: { Authorization: `Bearer ${token}` },
       })

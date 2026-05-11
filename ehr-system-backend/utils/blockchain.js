@@ -66,6 +66,31 @@ class BlockchainService {
     }
   }
 
+  async getGasFundDeposits(address) {
+    try {
+      if (!address || address === '-') {
+        return { totalWei: '0', lastTxHash: null, count: 0 };
+      }
+
+      const filter = this.contract.filters.GasFundDeposited(address);
+      const events = await this.contract.queryFilter(filter, 0, 'latest');
+      const totalWei = events.reduce((total, event) => {
+        const amount = event.args?.amount || ethers.BigNumber.from(0);
+        return total.add(amount);
+      }, ethers.BigNumber.from(0));
+
+      const lastEvent = events[events.length - 1];
+      return {
+        totalWei: totalWei.toString(),
+        lastTxHash: lastEvent?.transactionHash || null,
+        count: events.length
+      };
+    } catch (error) {
+      console.error(`Error fetching gas deposit events for ${address}:`, error.message);
+      return { totalWei: '0', lastTxHash: null, count: 0, error: error.message };
+    }
+  }
+
   async computeRecordHash(recordData, signerAddress) {
     const { recordId, patientName, diagnosis, recordDate, providerName } = recordData;
     const messageHash = ethers.utils.solidityKeccak256(
@@ -105,6 +130,35 @@ class BlockchainService {
         error: error.message
       };
     }
+  }
+
+  async issueCertificate(recordId, patientName, diagnosis, recordDate, providerName) {
+    const recordData = { recordId, patientName, diagnosis, recordDate, providerName };
+    const signerAddress = this.wallet.address;
+    const { messageHash } = await this.computeRecordHash(recordData, signerAddress);
+    const signature = await this.wallet.signMessage(ethers.utils.arrayify(messageHash));
+
+    return this.issueWithMetaMaskSignature(recordData, messageHash, signature, signerAddress);
+  }
+
+  async bulkIssueWithSingleAuth(recordData, authHash, authSignature, signerAddress) {
+    const recoveredAddress = ethers.utils.verifyMessage(ethers.utils.arrayify(authHash), authSignature);
+    if (recoveredAddress.toLowerCase() !== signerAddress.toLowerCase()) {
+      throw new Error('Bulk authorization signature verification failed');
+    }
+
+    const isProvider = await this.isProvider(signerAddress);
+    if (!isProvider) {
+      throw new Error(`Signer ${signerAddress} is not an authorized provider on-chain`);
+    }
+
+    return this.issueCertificate(
+      recordData.recordId,
+      recordData.patientName,
+      recordData.diagnosis,
+      recordData.recordDate,
+      recordData.providerName
+    );
   }
 
   async issueWithMetaMaskSignature(recordData, messageHash, signature, signerAddress) {

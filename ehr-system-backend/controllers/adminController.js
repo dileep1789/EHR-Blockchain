@@ -276,3 +276,38 @@ exports.getBlockchainStatus = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get recent blockchain transactions
+exports.getRecentTransactions = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const HealthRecord = mongoose.model('HealthRecord');
+    
+    const limit = parseInt(req.query.limit) || 10;
+    
+    // Fetch recent records with blockchain transactions
+    const records = await HealthRecord.find({
+      blockchain_tx_hash: { $exists: true, $ne: null }
+    })
+      .sort({ created_at: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({
+      success: true,
+      count: records.length,
+      data: records.map(r => ({
+        record_id: r.record_id,
+        patient_name: r.patient_name,
+        hospital_name: r.hospital_name,
+        diagnosis: r.diagnosis,
+        blockchain_tx_hash: r.blockchain_tx_hash,
+        blockchain_verified: r.blockchain_verified,
+        created_at: r.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

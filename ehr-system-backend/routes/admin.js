@@ -24,5 +24,6 @@ router.get('/statistics', verifyToken, verifyAdmin, adminController.getStatistic
 
 // Blockchain status
 router.get('/blockchain/status', verifyToken, verifyAdmin, adminController.getBlockchainStatus);
+router.get('/blockchain/transactions', verifyToken, verifyAdmin, adminController.getRecentTransactions);
 
 module.exports = router;

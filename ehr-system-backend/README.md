@@ -27,16 +27,16 @@ Base URL: `http://localhost:3001`
 
 ## Overview
 This backend powers a blockchain-based certificate platform with:
-- Role-based auth for students, universities, and admins
+- Role-based auth for patients, hospitals, and admins
 - Certificate issuance and verification on Polygon Amoy
-- Public verification endpoints for certificates and student portfolios
+- Public verification endpoints for records and patient portfolios
 - Email verification and transactional emails
-- AI-powered career insights for students
+- AI-powered health insights for patients
 - Contact form API with rate limiting and email notifications
 
 ## Core Features
-- Student onboarding, profile management, and dashboard
-- University registration, approval workflow, and certificate issuance
+- Patient onboarding, profile management, and dashboard
+- Hospital registration, approval workflow, and record issuance
 - Admin institute moderation (approve/reject/revoke)
 - MetaMask and relayer-backed blockchain issuance flows
 - Public verification APIs for third-party checks
@@ -211,20 +211,20 @@ Authorization: Bearer <JWT_TOKEN>
 ```
 
 Role guards are enforced in middleware for:
-- Student
-- University
+- Patient
+- Hospital
 - Admin
 
 ## API Reference
 
 ### Auth Routes (`/api/auth`)
-- `POST /student/register`
-- `POST /student/login`
-- `GET /student/verify-email`
-- `POST /student/resend-verification`
-- `GET /student/profile` (student auth)
+- `POST /patient/register`
+- `POST /patient/login`
+- `GET /patient/verify-email`
+- `POST /patient/resend-verification`
+- `GET /patient/profile` (patient auth)
 
-### Student Routes (`/api/student`)
+### Patient Routes (`/api/patient`)
 - `GET /dashboard`
 - `GET /certificates`
 - `GET /certificates/:certificateId`
@@ -233,7 +233,7 @@ Role guards are enforced in middleware for:
 - `PATCH /portfolio/visibility`
 - `PATCH /profile` (multipart fields: `profile_photo`, `cv`)
 
-### University Routes (`/api/university`)
+### Hospital Routes (`/api/hospital`)
 Public:
 - `POST /register` (multipart fields: `logo`, `verification_doc`)
 - `POST /login`
@@ -243,7 +243,7 @@ Public:
 Protected:
 - `GET /profile`
 - `GET /dashboard`
-- `GET /students/search`
+- `GET /patients/search`
 - `POST /certificate/issue`
 - `POST /certificate/sign-payload`
 - `POST /certificate/issue-signed`
@@ -301,7 +301,7 @@ Rate limiting:
 ## Static Files and Uploads
 - Public:
   - `/uploads/institutes/logos/*`
-  - `/uploads/students/*`
+  - `/uploads/patients/*`
 - Protected:
   - `/uploads/institutes/documents/*` (JWT required)
   - `GET /api/files/:filename` (JWT required)
@@ -314,8 +314,8 @@ controllers/
   adminController.js
   authController.js
   contactController.js
-  studentController.js
-  universityController.js
+  patientController.js
+  hospitalController.js
   verifyController.js
 database/
   schema.sql
@@ -326,15 +326,15 @@ models/
   Admin.js
   Certificate.js
   Institute.js
-  Student.js
+  Patient.js
 routes/
   admin.js
   auth.js
   contact.js
   metamask-routes.js
   payment.js
-  student.js
-  university.js
+  patient.js
+  hospital.js
   verify.js
 utils/
   blockchain.js

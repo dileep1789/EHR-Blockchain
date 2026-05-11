@@ -10,8 +10,10 @@ const patientSchema = new mongoose.Schema({
   birthdate:  { type: String },
   is_portfolio_public: { type: Boolean, default: false },
   profile_photo_url: { type: String, default: null },
+  cv_url: { type: String, default: null },
   medical_history_url: { type: String, default: null },
   blood_group: { type: String, default: null },
+  github_url: { type: String, default: null },
   email_verified: { type: Boolean, default: false },
   email_verification_token: { type: String, default: null },
   email_verification_expires: { type: Date, default: null },
@@ -33,7 +35,7 @@ const Patient = {
 
   async findById(patientId) {
     return PatientModel.findOne({ patient_id: patientId },
-      'patient_id full_name email gender birthdate is_portfolio_public profile_photo_url medical_history_url blood_group email_verified created_at'
+      'patient_id full_name email gender birthdate is_portfolio_public profile_photo_url cv_url medical_history_url blood_group github_url email_verified created_at'
     ).lean();
   },
 

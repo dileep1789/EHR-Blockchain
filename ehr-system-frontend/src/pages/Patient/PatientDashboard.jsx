@@ -13,8 +13,6 @@ export default function PatientDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dashboardData, setDashboardData] = useState(null);
-  const [careerInsights, setCareerInsights] = useState(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
   const [isPortfolioPublic, setIsPortfolioPublic] = useState(true);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [visibilityMessage, setVisibilityMessage] = useState('');
@@ -39,9 +37,9 @@ export default function PatientDashboard() {
   const patient = dashboardData?.patient || null;
   const patientId = patient?.patientId || patient?.patient_id || '';
   const hasProfilePhoto = Boolean(patient?.profile_photo_url || patient?.profilePhotoUrl);
-  const hasGithubProfile = Boolean((patient?.github_url || '').trim());
+  const hasBloodGroup = Boolean((patient?.blood_group || patient?.github_url || '').trim());
   const hasCvFile = Boolean(patient?.cv_url || patient?.cvUrl);
-  const isProfileComplete = hasProfilePhoto && hasGithubProfile && hasCvFile;
+  const isProfileComplete = hasProfilePhoto && hasBloodGroup && hasCvFile;
 
   const getProfilePromptStorageKeys = () => {
     const keySuffix = patientId || 'unknown';
@@ -103,9 +101,7 @@ export default function PatientDashboard() {
         setIsPortfolioPublic(Boolean(visibility));
       }
 
-      if (response.data.patient?.github_url) {
-        setGithubLink(response.data.patient.github_url);
-      }
+      setGithubLink(response.data.patient?.blood_group || response.data.patient?.github_url || '');
     } catch (err) {
       if (err.response?.status === 401) {
         navigate('/login');
@@ -113,30 +109,6 @@ export default function PatientDashboard() {
       setError(err.response?.data?.error || 'Failed to load dashboard');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchCareerInsights = async () => {
-    try {
-      setLoadingInsights(true);
-      const response = await patientAPI.getCareerInsights(false);
-      setCareerInsights(response.data.insights);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load career insights');
-    } finally {
-      setLoadingInsights(false);
-    }
-  };
-
-  const regenerateInsights = async () => {
-    try {
-      setLoadingInsights(true);
-      const response = await patientAPI.getCareerInsights(true);
-      setCareerInsights(response.data.insights);
-    } catch (err) {
-      setError('Failed to regenerate insights');
-    } finally {
-      setLoadingInsights(false);
     }
   };
 
@@ -194,7 +166,7 @@ export default function PatientDashboard() {
       if (birthdateValue) {
         formData.append('birthdate', birthdateValue);
       }
-      formData.append('github_url', githubLink);
+      formData.append('blood_group', githubLink);
       
       if (profilePhoto && profilePhoto.type && !profilePhoto.type.startsWith('image/')) {
         setProfileMessage('Profile photo must be an image file.');
@@ -265,7 +237,7 @@ export default function PatientDashboard() {
       diagnosis: cert.record_title || cert.diagnosis || cert.certificate_title,
       hospitalName: cert.hospital_name || cert.institute_name,
       recordDate: cert.record_date,
-      status: cert.status || cert.grade,
+      medicalStatus: cert.medical_status || cert.status || cert.grade,
       hospitalLogoUrl: logoUrl
     };
   };
@@ -274,8 +246,14 @@ export default function PatientDashboard() {
     setPdfCertificate(buildCertificateData(cert));
 
     const waitForTemplate = async () => {
-      for (let i = 0; i < 10; i += 1) {
-        if (templateRef.current) {
+      const expectedRecordId = cert.record_id;
+      for (let i = 0; i < 60; i += 1) {
+        const templateText = templateRef.current?.textContent || '';
+        if (
+          templateRef.current &&
+          templateRef.current.offsetHeight > 0 &&
+          templateText.includes(expectedRecordId)
+        ) {
           return true;
         }
         await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -346,6 +324,18 @@ export default function PatientDashboard() {
     ? (rawProfilePhoto.startsWith('http') ? rawProfilePhoto : `${serverBase}${rawProfilePhoto}`)
     : '';
   const showProfileImage = profileImageUrl && !profileImageFailed;
+  const getExplorerUrl = (txHash) => {
+    if (typeof window.MetaMask === 'undefined' || !txHash) {
+      return '';
+    }
+
+    try {
+      return new window.MetaMask().getExplorerUrl(txHash, 'tx') || '';
+    } catch (error) {
+      console.error('Failed to resolve explorer URL:', error);
+      return '';
+    }
+  };
 
   const downloadPortfolioCard = async () => {
     const target = exportCardRef.current || cardRef.current;
@@ -408,7 +398,7 @@ export default function PatientDashboard() {
             </button>
             <button 
               onClick={() => {
-                const link = `${window.location.origin}/portfolio/${patient?.patientId}`
+                const link = `${window.location.origin}/public-record/${patient?.patientId}`
                 navigator.clipboard.writeText(link)
                 alert('Record link copied to clipboard!')
               }}
@@ -445,7 +435,7 @@ export default function PatientDashboard() {
                       Profile picture missing
                     </span>
                   )}
-                  {!hasGithubProfile && (
+                  {!hasBloodGroup && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-white border border-amber-200 px-3 py-1 text-xs md:text-sm text-amber-800">
                       <span className="material-icons" style={{ fontSize: '14px' }}>water_drop</span>
                       Blood Group missing
@@ -750,46 +740,6 @@ export default function PatientDashboard() {
             All Records
           </button>
           <button
-            onClick={() => setActiveTab('institution')}
-            className={`pb-2 md:pb-3 px-1 text-sm md:text-base font-semibold transition-colors whitespace-nowrap ${
-              activeTab === 'institution'
-                ? 'text-(--color-primary-violet) border-b-2 border-(--color-primary-violet)'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            By Institution
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('roadmap');
-              if (!careerInsights) {
-                fetchCareerInsights();
-              }
-            }}
-            className={`pb-2 md:pb-3 px-1 text-sm md:text-base font-semibold transition-colors whitespace-nowrap ${
-              activeTab === 'roadmap'
-                ? 'text-(--color-primary-violet) border-b-2 border-(--color-primary-violet)'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Road Map
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('summary');
-              if (!careerInsights) {
-                fetchCareerInsights();
-              }
-            }}
-            className={`pb-2 md:pb-3 px-1 text-sm md:text-base font-semibold transition-colors whitespace-nowrap ${
-              activeTab === 'summary'
-                ? 'text-(--color-primary-violet) border-b-2 border-(--color-primary-violet)'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Summary
-          </button>
-          <button
             onClick={() => setActiveTab('settings')}
             className={`pb-2 md:pb-3 px-1 text-sm md:text-base font-semibold transition-colors whitespace-nowrap ${
               activeTab === 'settings'
@@ -863,14 +813,20 @@ export default function PatientDashboard() {
                   {cert.blockchain_tx_hash && (
                     <div className="mb-3 md:mb-4 bg-gray-50 rounded-lg p-2 md:p-3 border border-gray-200">
                       <p className="text-xs text-gray-600 font-semibold mb-1">Blockchain Transaction:</p>
-                      <a 
-                        href={`https://amoy.polygonscan.com/tx/${cert.blockchain_tx_hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:text-blue-800 font-mono break-all underline flex items-center gap-1"
-                      >
-                        <span className="material-icons" style={{fontSize: '14px'}}>link</span> {cert.blockchain_tx_hash}
-                      </a>
+                      {getExplorerUrl(cert.blockchain_tx_hash) ? (
+                        <a 
+                          href={getExplorerUrl(cert.blockchain_tx_hash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 font-mono break-all underline flex items-center gap-1"
+                        >
+                          <span className="material-icons" style={{fontSize: '14px'}}>link</span> {cert.blockchain_tx_hash}
+                        </a>
+                      ) : (
+                        <p className="text-xs text-gray-600 font-mono break-all flex items-center gap-1">
+                          <span className="material-icons" style={{fontSize: '14px'}}>check_circle</span> {cert.blockchain_tx_hash}
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -884,192 +840,27 @@ export default function PatientDashboard() {
                       <span className="material-icons text-sm md:text-base">description</span> <span className="hidden sm:inline">View HealthRecord</span><span className="sm:hidden">View</span>
                     </button>
                     {cert.blockchain_tx_hash && (
-                      <a 
-                        href={`https://amoy.polygonscan.com/tx/${cert.blockchain_tx_hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-green-600 text-white text-xs md:text-sm font-semibold px-3 md:px-4 py-2 rounded-lg flex items-center gap-1 md:gap-2 hover:bg-green-700 transition-colors"
-                      >
-                        <span className="material-icons text-sm md:text-base">check_circle</span> <span className="hidden sm:inline">Verify on Blockchain</span><span className="sm:hidden">Verify</span>
-                      </a>
+                      getExplorerUrl(cert.blockchain_tx_hash) ? (
+                        <a 
+                          href={getExplorerUrl(cert.blockchain_tx_hash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-green-600 text-white text-xs md:text-sm font-semibold px-3 md:px-4 py-2 rounded-lg flex items-center gap-1 md:gap-2 hover:bg-green-700 transition-colors"
+                        >
+                          <span className="material-icons text-sm md:text-base">check_circle</span> <span className="hidden sm:inline">Verify on Blockchain</span><span className="sm:hidden">Verify</span>
+                        </a>
+                      ) : (
+                        <button 
+                          disabled 
+                          className="bg-green-400 text-white text-xs md:text-sm font-semibold px-3 md:px-4 py-2 rounded-lg flex items-center gap-1 md:gap-2 opacity-60 cursor-not-allowed"
+                        >
+                          <span className="material-icons text-sm md:text-base">check_circle</span> <span className="hidden sm:inline">Local Network</span><span className="sm:hidden">Local</span>
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
               )})
-            )}
-          </div>
-        )}
-
-        {activeTab === 'institution' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            {institutions.length === 0 ? (
-              <div className="col-span-2 bg-gray-100 rounded-xl md:rounded-2xl p-8 md:p-12 text-center">
-                <p className="text-gray-600">No institutions yet</p>
-              </div>
-            ) : (
-              institutions.map((inst, index) => {
-                const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
-                const serverUrl = baseUrl.replace('/api', '')
-                const logoUrl = inst.logo_url ? `${serverUrl}${inst.logo_url}` : null
-                
-                return (
-                <div
-                  key={index}
-                  className="bg-purple-50 rounded-xl md:rounded-2xl p-6 md:p-8 text-center"
-                >
-                  {logoUrl ? (
-                    <img
-                      src={logoUrl}
-                      alt={inst.institute_name}
-                      className="w-16 h-16 md:w-20 md:h-20 object-contain rounded-lg mx-auto mb-3 md:mb-4 border border-gray-200"
-                    />
-                  ) : (
-                    <div className="mb-3 md:mb-4"><span className="material-icons text-purple-600" style={{fontSize: '3rem'}}>account_balance</span></div>
-                  )}
-                  <h3 className="text-base md:text-xl font-bold text-gray-800 mb-2">
-                    {inst.institute_name}
-                  </h3>
-                  <p className="text-sm md:text-base text-gray-600 mb-3 md:mb-4">
-                    {inst.certificateCount} HealthRecord{inst.certificateCount !== 1 ? 's' : ''}
-                  </p>
-                  <button className="bg-(--color-primary-violet) text-white rounded-lg px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity">
-                    View All
-                  </button>
-                </div>
-                )
-              })
-            )}
-          </div>
-        )}
-
-        {activeTab === 'roadmap' && (
-          <div className="space-y-4 md:space-y-6">
-            {loadingInsights ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Analyzing your health record summary with AI...</p>
-              </div>
-            ) : careerInsights ? (
-              <>
-                {/* AI Care Summary Section */}
-                <div className="bg-gradient-primary rounded-xl md:rounded-2xl p-6 md:p-8 text-white">
-                  <h3 className="text-lg md:text-2xl font-bold mb-2 md:mb-3">Regenerate your personal care summary with AI</h3>
-                  <p className="text-sm md:text-base text-white/90 mb-4 md:mb-6">Generate an AI-based care summary customized to your record history. Add records before regenerating insights.</p>
-                  <button
-                    onClick={regenerateInsights}
-                    disabled={loadingInsights}
-                    className="bg-white text-purple-600 rounded-lg px-6 md:px-8 py-2.5 md:py-3 text-xs md:text-sm font-bold hover:shadow-lg transition-shadow disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <span className="material-icons text-sm md:text-base">refresh</span> REGENERATE
-                  </button>
-                </div>
-
-                {/* Career Matches */}
-                <div className="bg-white border border-gray-200 rounded-xl md:rounded-2xl p-4 md:p-6">
-                  <h3 className="text-base md:text-lg font-bold text-gray-800 mb-3 md:mb-4 flex items-center gap-2">
-                    <span className="material-icons text-emerald-600">track_changes</span> Care Matches
-                  </h3>
-                  <div className="space-y-3">
-                    {careerInsights.treatmentMatches?.map((career, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-gray-700">{career.title}</span>
-                        <span className="font-semibold text-(--color-primary-violet)">{career.matchPercentage}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Next Steps */}
-                <div className="bg-white border border-gray-200 rounded-xl md:rounded-2xl p-4 md:p-6">
-                  <h3 className="text-base md:text-lg font-bold text-gray-800 mb-3 md:mb-4">Next Steps</h3>
-                  <div className="space-y-4">
-                    {careerInsights.recommendedActions?.map((step, index) => (
-                      <div
-                        key={index}
-                        className={`border-l-4 ${step.completed ? 'border-green-500' : 'border-orange-500'} pl-4`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className={step.completed ? 'text-green-600' : 'text-orange-600'}>
-                            <span className="material-icons text-sm">{step.completed ? 'check' : 'close'}</span>
-                          </span>
-                          <div>
-                            <h4 className="font-bold text-gray-800">{step.title}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{step.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-gray-100 rounded-xl md:rounded-2xl p-8 md:p-12 text-center">
-                <p className="text-sm md:text-base text-gray-600 mb-4">Get AI-powered care guidance based on your records</p>
-                <button
-                  onClick={fetchCareerInsights}
-                  className="bg-(--color-primary-violet) text-white px-5 md:px-6 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold hover:opacity-90 flex items-center gap-2 mx-auto"
-                >
-                  <span className="material-icons text-sm md:text-base">smart_toy</span> Generate Care Summary
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'summary' && (
-          <div className="space-y-4 md:space-y-6">
-            {loadingInsights ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Generating summary...</p>
-              </div>
-            ) : careerInsights ? (
-              <>
-                {/* Summary Text */}
-                <div className="bg-white border border-gray-200 rounded-xl md:rounded-2xl p-4 md:p-6">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4">Summary</h3>
-                  <p className="text-sm md:text-base text-gray-700 leading-relaxed">
-                    {careerInsights.summary || 'Your care summary will appear here based on your records and history.'}
-                  </p>
-                </div>
-
-                {/* Top Skills */}
-                <div className="bg-white border border-gray-200 rounded-xl md:rounded-2xl p-4 md:p-6">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4 text-center">Top Skills</h3>
-                  <div className="space-y-3">
-                    {careerInsights.riskFactors?.map((skill, index) => (
-                      <div key={index} className="bg-gray-100 rounded-lg px-4 py-3 text-center font-medium text-gray-700">
-                        {skill}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recommended Jobs */}
-                <div className="bg-white border border-gray-200 rounded-xl md:rounded-2xl p-4 md:p-6">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4 text-center">Recommended Jobs</h3>
-                  <div className="space-y-4">
-                    {careerInsights.treatmentMatches?.slice(0, 2).map((career, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4">
-                        <h4 className="font-bold text-gray-800 mb-2">{career.title}</h4>
-                        <p className="text-sm text-gray-600">
-                          Based on your {career.matchPercentage}% match with this role, you are well-suited for positions requiring the skills demonstrated in your records.
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-gray-100 rounded-xl md:rounded-2xl p-8 md:p-12 text-center">
-                <p className="text-sm md:text-base text-gray-600 mb-4">Generate your professional summary and job recommendations</p>
-                <button
-                  onClick={fetchCareerInsights}
-                  className="bg-(--color-primary-violet) text-white px-5 md:px-6 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold hover:opacity-90 flex items-center gap-2 mx-auto"
-                >
-                  <span className="material-icons text-sm md:text-base">smart_toy</span> Generate Summary
-                </button>
-              </div>
             )}
           </div>
         )}
@@ -1257,7 +1048,7 @@ export default function PatientDashboard() {
                   </label>
                   <div className="flex gap-2">
                     <input
-                      type="url"
+                      type="text"
                       value={githubLink}
                       onChange={(e) => setGithubLink(e.target.value)}
                       placeholder="e.g. A+, B-, O+"
@@ -1266,16 +1057,6 @@ export default function PatientDashboard() {
                         isEditingProfile ? 'bg-white' : 'bg-gray-50'
                       }`}
                     />
-                    {githubLink && !isEditingProfile && (
-                      <a
-                        href={githubLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-gray-800 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-gray-900 transition-colors flex items-center gap-2"
-                      >
-                        <span className="material-icons text-sm">open_in_new</span> Visit
-                      </a>
-                    )}
                   </div>
                 </div>
 

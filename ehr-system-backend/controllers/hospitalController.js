@@ -366,7 +366,18 @@ exports.issueCertificateWithSignature = async (req, res) => {
       sendRecordIssuedEmail({ to: patient.email, patientName: patient.full_name, recordId: record_id, diagnosis: diagnosis, hospitalName: hospital.hospital_name, issuedDate: record_date }).catch(console.error);
     }
 
-    res.status(201).json({ message: 'Record issued successfully (MetaMask-signed)', record: { record_id, patient_id: patient_id, diagnosis: diagnosis, status: status, record_date, blockchain: txResult } });
+    res.status(201).json({
+      message: 'Record issued successfully (MetaMask-signed)',
+      record: {
+        record_id,
+        patient_id: patient_id,
+        diagnosis: diagnosis,
+        status: status,
+        record_date,
+        blockchain_tx_hash: txResult.txHash,
+        blockchain: txResult
+      }
+    });
   } catch (error) {
     console.error('Issue record (signature) error:', error);
     res.status(500).json({ error: error.message });

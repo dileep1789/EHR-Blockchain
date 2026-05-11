@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { UploadCloud } from "lucide-react";
-import { hospitalAPI, authAPI } from "../../services/api";
+import { hospitalAPI } from "../../services/api";
 import { useMetaMaskContext } from "../../context/MetaMaskContext";
 import MetaMaskGuard from "../../components/MetaMaskGuard";
 
@@ -125,72 +125,20 @@ const BulkUpload = () => {
     setUploadProgress(0);
 
     try {
-      // Step 1: Create records in database (20%)
-      setCurrentStep('Syncing clinical records...');
+      // Step 1: Prepare records for authorization
+      setCurrentStep('Preparing records for blockchain...');
       setUploadProgress(10);
-      
-      const bulkResponse = await hospitalAPI.bulkAddRecords({
-        records: csvData,
-      });
 
-      console.log('Bulk create response:', bulkResponse.data);
-      console.log('Results from backend:', bulkResponse.data?.results);
-
-      if (!bulkResponse.data?.results || bulkResponse.data.results.length === 0) {
-        throw new Error('Failed to create records in database');
-      }
-
-      setUploadProgress(20);
-
-      // Step 2: Get hospital profile for issuer name
-      setCurrentStep('Fetching hospital information...');
-      const profileResponse = await authAPI.getHospitalProfile();
-      const providerName = profileResponse.data?.hospital?.hospital_name || 'Hospital';
-      
       setUploadProgress(30);
 
-      // Step 3: Prepare record data with patient names
-      setCurrentStep('Preparing records for blockchain...');
-      const certificatesWithDetails = await Promise.all(
-        bulkResponse.data.results.map(async (result) => {
-          const originalCert = csvData.find(c => c.patient_id === result.patient_id);
-          
-          if (!originalCert) {
-            console.error('Could not find original cert data for patient_id:', result.patient_id);
-            console.error('Available CSV data patient IDs:', csvData.map(c => c.patient_id));
-            console.error('Result object:', result);
-          }
-          
-          // Try to get patient name from backend
-          let patientName = result.patient_id; // Fallback to ID
-          try {
-            // Note: This assumes patient data is accessible. Adjust if backend doesn't provide this.
-            patientName = result.patient_name || result.patient_id;
-          } catch {}
-          
-          return {
-            patient_id: result.patient_id,
-            diagnosis: originalCert?.diagnosis || 'Unknown',
-            status: originalCert?.status || 'N/A',
-            record_date: new Date().toISOString().split('T')[0],
-            patient_name: patientName
-          };
-        })
-      );
-      
-      console.log('Prepared records with details:', certificatesWithDetails);
-
-      setUploadProgress(40);
-
-      // Step 4: Get authorization message from backend
+      // Step 2: Get authorization message from backend
       setCurrentStep('Getting authorization message...');
       const authPayload = {
-        certificate_count: certificatesWithDetails.length,
-        records: certificatesWithDetails.map(c => ({
+        certificate_count: csvData.length,
+        records: csvData.map(c => ({
           patient_id: c.patient_id,
           diagnosis: c.diagnosis,
-          status: c.status,
-          record_date: c.record_date
+          status: c.status
         }))
       };
       
@@ -220,7 +168,7 @@ const BulkUpload = () => {
 
       setUploadProgress(50);
 
-      // Step 5: Request MetaMask signature
+      // Step 3: Request MetaMask signature
       setCurrentStep('Waiting for MetaMask signature...');
       setMessage({ type: 'info', text: 'Please sign the message in MetaMask to authorize bulk issuance' });
       
@@ -232,15 +180,8 @@ const BulkUpload = () => {
       setUploadProgress(60);
       setMessage({ type: '', text: '' });
 
-      // Step 6: Submit to blockchain
+      // Step 4: Submit to backend for blockchain issuance and database save
       setCurrentStep('Issuing records on blockchain...');
-      const certsForBlockchain = bulkResponse.data.results.map((result, index) => ({
-        recordId: result.record_id,
-        patientName: certificatesWithDetails[index].patient_name,
-        diagnosis: certificatesWithDetails[index].diagnosis,
-        recordDate: certificatesWithDetails[index].record_date,
-        providerName: providerName
-      }));
 
       const blockchainPayload = {
         auth_hash: messageHash,
@@ -249,7 +190,11 @@ const BulkUpload = () => {
         batch_id: batchId,
         certificate_count: certificateCount,
         expiry: expiry,
-        records: certsForBlockchain
+        records: csvData.map(record => ({
+          patient_id: record.patient_id,
+          diagnosis: record.diagnosis,
+          medical_status: record.status
+        }))
       };
       
       console.log('Blockchain submission payload:', blockchainPayload);
@@ -273,8 +218,9 @@ const BulkUpload = () => {
       setUploadProgress(100);
       setCurrentStep('Complete!');
 
-      const successCount = blockchainResponse.data?.successCount ?? blockchainResponse.data?.success_count ?? certsForBlockchain.length;
-      const failureCount = blockchainResponse.data?.failureCount ?? blockchainResponse.data?.failure_count ?? 0;
+      const results = blockchainResponse.data?.results || [];
+      const successCount = blockchainResponse.data?.successCount ?? blockchainResponse.data?.success_count ?? results.filter(result => result.success).length;
+      const failureCount = blockchainResponse.data?.failureCount ?? blockchainResponse.data?.failure_count ?? results.filter(result => !result.success).length;
       
       console.log('Final success count:', successCount);
       console.log('Final failure count:', failureCount);

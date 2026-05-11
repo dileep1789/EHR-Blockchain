@@ -193,6 +193,9 @@ export const adminAPI = {
   getBlockchainStatus: () =>
     api.get('/admin/blockchain/status'),
 
+  getRecentTransactions: (limit = 10) =>
+    api.get(`/admin/blockchain/transactions?limit=${limit}`),
+
   getBalance: (address) =>
     api.get(`/payment/balance?address=${address}`),
 };
@@ -204,7 +207,7 @@ export const verifyAPI = {
     api.get(`/verify/record/${recordId}`),
   
   getUserCertificates: (patientId) => 
-    api.get(`/verify/user/${patientId}`),
+    api.get(`/verify/patient/${patientId}`),
 };
 
 // ==================== CONTACT APIs ====================

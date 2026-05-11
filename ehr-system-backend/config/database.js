@@ -19,7 +19,8 @@ mongoose.connect(MONGODB_URI, {
 })
 .catch((err) => {
   console.error('❌ MongoDB connection failed:', err.message);
-  console.error('💡 Server will keep running but DB operations will fail.');
+  console.error('💡 Exiting process. Please ensure MongoDB is running and MONGODB_URI is correct.');
+  process.exit(1);
 });
 
 module.exports = mongoose;

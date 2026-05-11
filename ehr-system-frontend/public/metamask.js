@@ -10,7 +10,7 @@ class MetaMask {
     this.userAddress = null;
     this.chainId = null;
     // MATCH THIS TO YOUR BACKEND .ENV
-    this.CONTRACT_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+    this.CONTRACT_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
     this.CHAIN_ID = 31337;
     this.RPC_URL = 'http://127.0.0.1:8545';
     this.BLOCK_EXPLORER = '';
@@ -330,6 +330,32 @@ class MetaMask {
       blockExplorer: this.BLOCK_EXPLORER,
       contractAddress: this.CONTRACT_ADDRESS
     };
+  }
+
+  getExplorerUrl(hash, type = 'tx') {
+    // type can be 'tx' (transaction) or 'address'
+    if (this.chainId === 31337) {
+      // Local Hardhat network - no public explorer
+      return null;
+    } else if (this.chainId === 80002) {
+      // Polygon Amoy Testnet
+      return `https://amoy.polygonscan.com/${type}/${hash}`;
+    } else if (this.chainId === 137) {
+      // Polygon Mainnet
+      return `https://polygonscan.com/${type}/${hash}`;
+    }
+    return null;
+  }
+
+  getNetworkName() {
+    if (this.chainId === 31337) {
+      return 'Local Hardhat Network';
+    } else if (this.chainId === 80002) {
+      return 'Polygon Amoy Testnet';
+    } else if (this.chainId === 137) {
+      return 'Polygon Mainnet';
+    }
+    return 'Unknown Network';
   }
 
   disconnect() {

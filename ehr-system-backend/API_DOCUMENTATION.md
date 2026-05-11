@@ -1,3 +1,8 @@
+# DEPRECATED: Legacy Student/University API Documentation
+
+This document describes the older student/university API model.
+The current application uses patient/hospital terminology and routes.
+
 # Certificate Verification Backend - Full API Documentation
 
 Version: 2.0  

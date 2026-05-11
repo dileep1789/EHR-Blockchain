@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
 
 const app = express();
 
@@ -42,8 +43,12 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
+app.use(helmet()); // Add security headers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Import rate limiters
+const { authLimiter, apiLimiter, uploadLimiter, publicLimiter, strictLimiter } = require('./config/rateLimiter');
 
 // Import auth middleware
 const { verifyToken } = require('./middleware/auth');
@@ -104,14 +109,15 @@ const paymentRoutes = require('./routes/payment');
 const verifyRoutes = require('./routes/verify');
 const contactRoutes = require('./routes/contact');
 
-app.use('/api/auth', authRoutes);
-app.use('/api/patient', patientRoutes);
-app.use('/api/hospital', hospitalRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/metamask', metamaskRoutes);
-app.use('/api/payment', paymentRoutes);
-app.use('/api/verify', verifyRoutes);
-app.use('/api/contact', contactRoutes);
+// Apply rate limiting to routes
+app.use('/api/auth', authLimiter, authRoutes); // Strict rate limit for auth
+app.use('/api/patient', apiLimiter, patientRoutes);
+app.use('/api/hospital', apiLimiter, hospitalRoutes);
+app.use('/api/admin', apiLimiter, adminRoutes);
+app.use('/api/metamask', apiLimiter, metamaskRoutes);
+app.use('/api/payment', apiLimiter, paymentRoutes);
+app.use('/api/verify', publicLimiter, verifyRoutes); // Public endpoint with reasonable limit
+app.use('/api/contact', strictLimiter, contactRoutes); // Very strict for contact form
 
 // =========================================
 // HEALTH CHECK

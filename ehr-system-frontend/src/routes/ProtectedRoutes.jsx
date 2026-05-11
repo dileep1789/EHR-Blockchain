@@ -117,5 +117,6 @@ export function ProtectedMetaMaskRoute({ children }) {
     )
   }
 
-  // If MetaMask is connected, show the children  return children
+  // If MetaMask is connected, show the children
+  return children
 }
