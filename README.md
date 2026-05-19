@@ -77,4 +77,4 @@ This project is developed for secure clinical demonstrations and healthcare rese
 
 ---
 *Built with ❤️ for the future of decentralized healthcare.* 
-this project total work on blockckain
+#this project total work on blockckain based and there patient data record 
