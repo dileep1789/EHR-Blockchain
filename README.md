@@ -78,4 +78,5 @@ This project is developed for secure clinical demonstrations and healthcare rese
 ---
 *Built with ❤️ for the future of decentralized healthcare.* 
 #this project total work on blockckain based and there patient data record  
-#blockckain ,Edge computing and Artificial intelligence in electronic health records system
+#blockckain ,Edge computing and Artificial intelligence in electronic health records system 
+#Electronic health records system provide you to download patient records like e-xray ,
